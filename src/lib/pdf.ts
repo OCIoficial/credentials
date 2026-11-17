@@ -13,8 +13,10 @@ import { titleCase } from "./data";
  *    <phase>        | nombre    | usuario | contraseña |
  *    <logo>         | full name | user    | pass       |
  *
- *  Entries are separated by a dashed cut line, drawn only when more than
- *  120pt of the page remain.
+ *  A dashed cut line follows every entry (when there's room for it on the
+ *  page), so consecutive entries on a page are always separated. Unlike the
+ *  Typst template (which skipped the line when <120pt remained), the line
+ *  never depends on whether another entry would fit.
  */
 
 const PAGE_W = 612;
@@ -24,9 +26,9 @@ const PAD_Y = 13;
 const INSET = 5;
 const FONT_SIZE = 11;
 const MONO_SIZE = 11;
+const MIN_MONO_SIZE = 7;
 const BLOCK_GAP = 13.2; // Typst default block spacing (1.2em)
 const LOGO_W = 141.73; // 5cm
-const RULE_MIN_REMAINING = 120;
 
 const TABLE_W = PAGE_W - 2 * PAD_X;
 const FR = TABLE_W / (1.8 + 1.8 + 1 + 1);
@@ -113,15 +115,26 @@ export async function generatePdf(phase: string, users: User[]): Promise<Uint8Ar
 
     doc.setFont("CMUSerif", "normal").setFontSize(FONT_SIZE);
     const nameLines: string[] = doc.splitTextToSize(fullname, COL_W[1] - 2 * INSET);
-    doc.setFont("CMUTypewriter", "normal").setFontSize(MONO_SIZE);
-    const userLines: string[] = doc.splitTextToSize(u.username, COL_W[2] - 2 * INSET);
-    const passLines: string[] = doc.splitTextToSize(u.password, COL_W[3] - 2 * INSET);
+    // Usernames/passwords must be typed exactly, so shrink them to fit on
+    // one line rather than breaking them; wrap only below MIN_MONO_SIZE.
+    const fitMono = (text: string, width: number) => {
+      doc.setFont("CMUTypewriter", "normal");
+      let size = MONO_SIZE;
+      while (size > MIN_MONO_SIZE && doc.setFontSize(size).getTextWidth(text) > width) size -= 0.5;
+      doc.setFontSize(size);
+      return { size, lines: doc.splitTextToSize(text, width) as string[] };
+    };
+    const user = fitMono(u.username, COL_W[2] - 2 * INSET);
+    const pass = fitMono(u.password, COL_W[3] - 2 * INSET);
+    const userLines = user.lines;
+    const passLines = pass.lines;
 
     const textLines = Math.max(nameLines.length, userLines.length, passLines.length, 1);
     const textBlockH = capHeight(FONT_SIZE) + (textLines - 1) * lineH;
     const bodyH = Math.max(logoH, textBlockH) + 2 * INSET;
     const entryH = PAD_Y + headerH + bodyH + PAD_Y;
 
+    // `y` is just below the previous entry's cut line (or 0 on a new page).
     if (!firstOnPage && y + entryH > PAGE_H) {
       doc.addPage();
       y = 0;
@@ -159,12 +172,12 @@ export async function generatePdf(phase: string, users: User[]): Promise<Uint8Ar
       lines.forEach((line, i) => doc.text(line, center(col), first + i * lineH, { align: "center" }));
     };
     drawCentered(nameLines, 1, "CMUSerif", FONT_SIZE);
-    drawCentered(userLines, 2, "CMUTypewriter", MONO_SIZE);
-    drawCentered(passLines, 3, "CMUTypewriter", MONO_SIZE);
+    drawCentered(userLines, 2, "CMUTypewriter", user.size);
+    drawCentered(passLines, 3, "CMUTypewriter", pass.size);
 
-    // Dashed cut line, only if there's still room for something below.
-    y = top + headerH + bodyH + PAD_Y + BLOCK_GAP;
-    if (PAGE_H - y > RULE_MIN_REMAINING) {
+    // Dashed cut line below every entry, if it fits on the page.
+    y = bottom + PAD_Y + BLOCK_GAP;
+    if (y <= PAGE_H - 2) {
       doc.setLineDashPattern([3, 2], 0);
       doc.line(0, y, PAGE_W, y);
       doc.setLineDashPattern([], 0);
