@@ -12,13 +12,9 @@ export function InputPanel({ onText, compact }: Props) {
 
   const readFile = async (file: File) => onText(await file.text(), file.name);
 
-  // Sample data is only bundled in dev builds; the DEV branch (and the
-  // dynamic import) is dropped from production builds.
   const loadSample = async () => {
-    if (import.meta.env.DEV) {
-      const { default: text } = await import("../sample.csv?raw");
-      onText(text, "sample.csv");
-    }
+    const res = await fetch(`${import.meta.env.BASE_URL}sample.csv`);
+    onText(await res.text(), "sample.csv");
   };
 
   return (
@@ -69,11 +65,9 @@ export function InputPanel({ onText, compact }: Props) {
             <button className="primary" disabled={!paste.trim()} onClick={() => onText(paste, "pasted text")}>
               Load pasted data
             </button>
-            {import.meta.env.DEV && (
-              <button className="link" onClick={() => void loadSample()}>
-                Try with sample data
-              </button>
-            )}
+            <button className="link" onClick={() => void loadSample()}>
+              Try with sample data
+            </button>
           </div>
         </div>
       )}
