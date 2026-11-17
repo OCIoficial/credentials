@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { InputPanel } from "./components/InputPanel";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import { ColumnMapper } from "./components/ColumnMapper";
 import { EMPTY_MAPPING, FIELDS, requiredFields, type Mapping } from "./lib/fields";
 import {
@@ -284,9 +285,11 @@ export default function App() {
                   )}
                 </div>
               </div>
-              <Suspense fallback={<div className="viewer muted">Loading viewer…</div>}>
-                <PdfViewer data={selected.bytes} />
-              </Suspense>
+              <ErrorBoundary resetKey={selected}>
+                <Suspense fallback={<div className="viewer muted">Loading viewer…</div>}>
+                  <PdfViewer data={selected.bytes} />
+                </Suspense>
+              </ErrorBoundary>
             </div>
           </div>
         </section>

@@ -1,6 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import * as pdfjs from "pdfjs-dist";
-import workerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+// The legacy build includes polyfills for very recent JS features
+// (e.g. Map.prototype.getOrInsertComputed, Math.sumPrecise) that the modern
+// build uses directly and that some browsers (e.g. Firefox for Android)
+// don't support yet.
+import * as pdfjs from "pdfjs-dist/legacy/build/pdf.mjs";
+import workerUrl from "pdfjs-dist/legacy/build/pdf.worker.min.mjs?url";
 
 pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
 
