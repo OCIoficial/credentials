@@ -56,6 +56,19 @@ button { cursor: pointer; }
 button:hover:not(:disabled) { border-color: var(--accent); }
 button:disabled { opacity: 0.5; cursor: not-allowed; }
 button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+/* Busy button: label and spinner overlap in one grid cell; the hidden label keeps the width. */
+.busy-button { display: inline-grid; place-items: center; }
+.busy-button > * { grid-area: 1 / 1; }
+.busy-button[aria-busy="true"] { cursor: progress; }
+.busy-button[aria-busy="true"] .label { visibility: hidden; }
+.spinner {
+  width: 1.1em; height: 1.1em; border-radius: 50%;
+  border: 2px solid currentColor; border-right-color: transparent;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 2s; } }
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 button.link { border: none; background: none; color: var(--accent); padding: 0.4rem; }
 textarea { width: 100%; resize: vertical; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 0.85rem; }
 
@@ -124,11 +137,15 @@ th { position: sticky; top: 0; background: var(--surface); }
 .badge { background: var(--border); border-radius: 999px; padding: 0 0.5rem; font-size: 0.75rem; }
 .preview { min-width: 0; display: flex; flex-direction: column; gap: 0.5rem; }
 .preview-actions { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; }
+.preview-actions strong { overflow-wrap: anywhere; }
+/* Buttons in a group share one width (the widest label). */
+.button-group { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 0.5rem; }
 .viewer { border: 1px solid var(--border); border-radius: var(--radius); background: #7c8188; overflow: hidden; }
 .viewer-bar { display: flex; justify-content: space-between; align-items: center; padding: 0.35rem 0.6rem; background: var(--surface); border-bottom: 1px solid var(--border); }
 .viewer-bar button { padding: 0.1rem 0.6rem; }
 .zoom { min-width: 3rem; text-align: center; font-size: 0.85rem; }
-.pages { max-height: 75vh; overflow: auto; padding: 8px; display: flex; flex-direction: column; align-items: safe center; gap: 8px; }
+.pages { height: min(75vh, 900px); overflow: auto; scrollbar-gutter: stable; overscroll-behavior: contain; padding: 8px; display: flex; flex-direction: column; align-items: safe center; gap: 8px; }
+.viewer-loading { height: calc(min(75vh, 900px) + 2.4rem); display: grid; place-items: center; background: var(--surface); }
 .pages > canvas { flex: none; background: #fff; box-shadow: 0 2px 6px rgb(0 0 0 / 0.3); }
 
 @media (max-width: 720px) {
@@ -136,5 +153,7 @@ th { position: sticky; top: 0; background: var(--surface); }
   .results { grid-template-columns: 1fr; }
   .pdf-list { flex-direction: row; overflow-x: auto; }
   .pdf-list button { flex: none; gap: 0.5rem; }
+  .preview-actions { flex-direction: column; align-items: stretch; }
+  .button-group { grid-auto-flow: row; }
   .pool-cards > div { width: calc(50% - 0.25rem); }
 }

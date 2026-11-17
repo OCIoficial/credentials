@@ -15,6 +15,7 @@ interface Props {
 /** Renders every page of a PDF to canvases using pdf.js. */
 export function PdfViewer({ data }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const shownDataRef = useRef<Uint8Array | null>(null);
   const [pages, setPages] = useState(0);
   const [zoom, setZoom] = useState(1);
   const [error, setError] = useState<string | null>(null);
@@ -40,9 +41,10 @@ export function PdfViewer({ data }: Props) {
     (async () => {
       const pdf = await task.promise;
       if (cancelled) return;
-      setPages(pdf.numPages);
-      el.replaceChildren();
+      // Render every page off-screen first and swap them in at once, so the
+      // viewer never collapses to an empty box (which makes the page jump).
       const dpr = window.devicePixelRatio || 1;
+      const canvases: HTMLCanvasElement[] = [];
       for (let n = 1; n <= pdf.numPages; n++) {
         const page = await pdf.getPage(n);
         if (cancelled) return;
@@ -56,9 +58,17 @@ export function PdfViewer({ data }: Props) {
         canvas.style.width = `${cssWidth}px`;
         canvas.style.height = `${(cssWidth * base.height) / base.width}px`;
         canvas.setAttribute("aria-label", `Page ${n}`);
-        el.appendChild(canvas);
         await page.render({ canvas, viewport }).promise;
+        if (cancelled) return;
+        canvases.push(canvas);
       }
+      // Keep the reading position when zooming; start at the top for a new PDF.
+      const isNewDoc = shownDataRef.current !== data;
+      const ratio = el.scrollHeight > 0 ? el.scrollTop / el.scrollHeight : 0;
+      el.replaceChildren(...canvases);
+      el.scrollTop = isNewDoc ? 0 : ratio * el.scrollHeight;
+      shownDataRef.current = data;
+      setPages(pdf.numPages);
     })().catch((e: unknown) => {
       if (!cancelled) setError(e instanceof Error ? e.message : String(e));
     });

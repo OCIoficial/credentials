@@ -125,6 +125,8 @@ export default function App() {
       const out: GeneratedPdf[] = [];
       for (const [name, list] of groups) {
         out.push({ name, count: list.length, bytes: await generatePdf(phase, list) });
+        // jsPDF blocks the main thread; yield so the UI stays responsive.
+        await new Promise((r) => setTimeout(r, 0));
       }
       setPdfs(out);
       setCurrent(0);
@@ -153,7 +155,7 @@ export default function App() {
     downloadBlob(blob, `credentials ${safeFileName(phase)}.zip`);
   };
 
-  const canGenerate = rows !== null && missing.length === 0 && users.length > 0 && !generating;
+  const canGenerate = rows !== null && missing.length === 0 && users.length > 0;
   const selected = pdfs?.[current];
 
   return (
@@ -249,9 +251,22 @@ export default function App() {
               <input type="checkbox" checked={groupSites} onChange={(e) => setGroupSites(e.target.checked)} />
               One PDF per site
             </label>
-            <button className="primary" disabled={!canGenerate} onClick={() => void generate()}>
-              {generating ? "Generating…" : groupSites ? `Generate ${groups.size} PDFs` : "Generate PDF"}
+            {/* The label stays in place (invisible) while busy so the button keeps its size. */}
+            <button
+              className="primary busy-button"
+              disabled={!canGenerate}
+              aria-busy={generating}
+              aria-disabled={generating || undefined}
+              onClick={() => {
+                if (!generating) void generate();
+              }}
+            >
+              <span className="label">{groupSites ? `Generate ${groups.size} PDFs` : "Generate PDF"}</span>
+              {generating && <span className="spinner" aria-hidden />}
             </button>
+            <span className="visually-hidden" role="status">
+              {generating ? "Generating PDFs…" : pdfs ? "PDFs ready" : ""}
+            </span>
           </div>
           {missing.length > 0 && (
             <p className="muted">Assign a column to: {missing.map((f) => f.label).join(", ")}.</p>
@@ -276,17 +291,17 @@ export default function App() {
             <div className="preview">
               <div className="preview-actions">
                 <strong>{selected.name}.pdf</strong>
-                <div className="row">
-                  <button onClick={() => downloadOne(selected)}>Download this PDF</button>
+                <div className="button-group">
+                  <button onClick={() => downloadOne(selected)}>Download PDF</button>
                   {pdfs.length > 1 && (
                     <button className="primary" onClick={() => void downloadAll()}>
-                      Download all ({pdfs.length}) as .zip
+                      Download all (.zip)
                     </button>
                   )}
                 </div>
               </div>
               <ErrorBoundary resetKey={selected}>
-                <Suspense fallback={<div className="viewer muted">Loading viewer…</div>}>
+                <Suspense fallback={<div className="viewer viewer-loading muted">Loading viewer…</div>}>
                   <PdfViewer data={selected.bytes} />
                 </Suspense>
               </ErrorBoundary>
